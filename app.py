@@ -5,251 +5,297 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import tempfile
+import datetime
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
-    page_title="LungHealth AI | Global Oncology Hub",
+    page_title="Lung Disease Prediction | AI Diagnostic Suite",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# -------------------- PREMIUM GLASSMORPHISM CSS --------------------
+# -------------------- THEME ENGINE (MATERIAL ELITE) --------------------
 def apply_premium_ui():
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Inter:wght@300;400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Material+Icons&display=swap');
         
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.08);
-            --glass-border: rgba(255, 255, 255, 0.15);
-            --glass-blur: blur(25px);
-            --primary-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-            --deep-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-            --accent-glow: 0 0 20px rgba(79, 172, 254, 0.4);
+            --primary: #00f2fe;
+            --secondary: #4facfe;
+            --danger: #ff4b2b;
+            --glass-bg: rgba(25, 33, 50, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --deep-gradient: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
         }
 
         .stApp {
             background: var(--deep-gradient);
             background-attachment: fixed;
-            color: #ffffff !important;
+            color: #f8f9fa !important;
         }
 
-        * { font-family: 'Poppins', sans-serif; color: #f8f9fa; }
+        * { font-family: 'Poppins', sans-serif; }
 
-        .nav-container {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 80px;
-            background: rgba(15, 12, 41, 0.9);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--glass-border);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            padding: 0 40px;
+        label, .stSlider p {
+            font-size: 1.05rem !important;
+            font-weight: 500 !important;
+            color: rgba(255,255,255,0.8) !important;
         }
 
-        div[data-testid="stHorizontalBlock"] .stButton > button {
-            background: transparent !important;
-            border: none !important;
-            color: rgba(255, 255, 255, 0.7) !important;
-            font-size: 1.1rem !important;
-            text-transform: none !important;
-            box-shadow: none !important;
-        }
-        div[data-testid="stHorizontalBlock"] .stButton > button:hover {
-            color: #4facfe !important;
-            background: rgba(255, 255, 255, 0.05) !important;
-        }
+        .mi { font-family: 'Material Icons'; vertical-align: middle; font-size: 1.5rem; margin-right: 10px; }
 
-        .glass-card {
+        .glass-container {
             background: var(--glass-bg);
-            backdrop-filter: var(--glass-blur);
-            border-radius: 24px;
-            padding: 40px;
+            backdrop-filter: blur(25px);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border-radius: 28px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             margin-bottom: 30px;
         }
-
-        .stButton>button {
-            background: var(--primary-gradient) !important;
-            color: white !important;
-            border-radius: 14px !important;
-            font-weight: 600 !important;
-            box-shadow: var(--accent-glow);
+        
+        .emergency-alert {
+            background: rgba(255, 75, 43, 0.15);
+            border: 2px solid var(--danger);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 75, 43, 0.6); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 75, 43, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 75, 43, 0); }
         }
 
-        #MainMenu, footer, header {visibility: hidden;}
-        .hero-title { font-size: 3.5rem; font-weight: 700; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .premium-nav {
+            position: fixed; top: 0; left: 0; right: 0; height: 80px;
+            background: rgba(2, 6, 23, 0.98);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+            z-index: 9999;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 60px;
+        }
+
+        .section-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--secondary);
+            margin: 20px 0 15px 0;
+            display: flex; align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 5px;
+        }
+
+        .stButton > button {
+            background: linear-gradient(90deg, #00f2fe, #4facfe) !important;
+            color: white !important;
+            border-radius: 12px !important;
+            padding: 12px 20px !important;
+            font-weight: 700 !important;
+            border: none !important;
+            width: 100%;
+            transition: 0.3s all ease-in-out;
+        }
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .logo-btn button {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            font-size: 1.7rem !important;
+            font-weight: 800 !important;
+            color: #4facfe !important;
+            width: auto !important;
+        }
         
-        [data-testid="stSidebar"] {
-            background: rgba(15, 12, 41, 0.95);
-            border-right: 1px solid var(--glass-border);
+        /* Layout Fixes */
+        .grid-group { margin-bottom: 20px; }
+        hr, .stDivider { display: none !important; }
+        #MainMenu, footer, header { visibility: hidden; }
+        
+        .result-perc {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin: 0;
+            background: linear-gradient(90deg, #fff, #4facfe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         </style>
     """, unsafe_allow_html=True)
 
 apply_premium_ui()
 
-# -------------------- NAVIGATION & STATE --------------------
+# -------------------- KNOWLEDGE BASE (CHATBOT) --------------------
+knowledge_base = {
+    "What is lung cancer?": "Lung cancer is a disease where cells grow uncontrollably, forming tumors that impair breathing.",
+    "Common symptoms?": "Persistent cough, shortness of breath, chest pain, and wheezing are critical signs.",
+    "Smoking effects?": "Smoking causes chronic inflammation and accounts for over 80% of lung cancer cases.",
+    "What is COPD?": "COPD blocks airflow and causes long-term breathing difficulty, usually triggered by smoking.",
+    "Earliest signs?": "Fatigue, mild shortness of breath during activity, and a lingering dry cough.",
+    "Is it reversible?": "Lung damage isn't fully reversible, but treatment can stop further progression.",
+    "Genetic risks?": "Alpha-1 antitrypsin deficiency is a key genetic factor in early-onset lung issues."
+}
+
+# -------------------- GLOBAL STATE & NAVIGATION --------------------
 if "page" not in st.session_state: st.session_state.page = "Home"
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! I am your LungHealth assistant. How can I help you today?"}]
+if "patient_name" not in st.session_state: st.session_state.patient_name = "Guest Patient"
+if "history" not in st.session_state: st.session_state.history = []
+if "chat_answer" not in st.session_state: st.session_state.chat_answer = None
+if "view_more_chat" not in st.session_state: st.session_state.view_more_chat = False
+if "show_info" not in st.session_state: st.session_state.show_info = None
 
 def navigate_to(p):
     st.session_state.page = p
     st.rerun()
 
-# -------------------- SIDEBAR CHAT --------------------
+# --- SIDEBAR CHATBOT ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#4facfe;'>💬 Health Assistant</h2>", unsafe_allow_html=True)
-    chat_box = st.container(height=350)
-    with chat_box:
-        for m in st.session_state.messages:
-            with st.chat_message(m["role"]): st.markdown(m["content"])
-    
-    kb = {
-        "Early Symptoms?": "Cough, shortness of breath, chest pain, and weight loss are major early signs.",
-        "Main Causes?": "Smoking, pollution, radon gas, and occupational hazards.",
-        "How to prevent?": "Quit smoking, test for radon, and eat antioxidant-rich fruits.",
-        "Treatment?": "Surgery, chemo, and targeted therapies based on stage."
-    }
-    
-    st.markdown("### 💡 FAQ")
-    for k, v in kb.items():
-        if st.button(k, use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": k})
-            st.session_state.messages.append({"role": "assistant", "content": v})
-            st.rerun()
+    st.markdown("<h2 style='text-align:center;'>🏠 Lung Assistant</h2>", unsafe_allow_html=True)
+    limit = len(knowledge_base) if st.session_state.view_more_chat else 4
+    for i, (q, a) in enumerate(list(knowledge_base.items())[:limit]):
+        if st.button(q, key=f"q_{i}"): st.session_state.chat_answer = a
+    if not st.session_state.view_more_chat:
+        if st.button("More FAQs +", key="v_m"): st.session_state.view_more_chat = True; st.rerun()
+    if st.session_state.chat_answer:
+        st.markdown(f"<div style='background:rgba(79,172,254,0.1); border:1px solid rgba(79,172,254,0.3); border-radius:15px; padding:15px; margin-top:15px;'><strong>Bot:</strong><br>{st.session_state.chat_answer}</div>", unsafe_allow_html=True)
 
-# -------------------- NAVBAR --------------------
-st.markdown('<div class="nav-container">', unsafe_allow_html=True)
-n1, n2, n3, n4, n5 = st.columns([2.5, 1, 1, 1, 0.5])
-with n1: st.markdown('<div style="font-weight: 700; font-size: 1.6rem; color: #4facfe; margin-top:10px;">🧬 LUNGHEALTH AI</div>', unsafe_allow_html=True)
-with n2: 
-    if st.button("Home", key="nh"): navigate_to("Home")
-with n3: 
-    if st.button("Analysis", key="na"): navigate_to("Analysis")
-with n4: 
-    if st.button("About Us", key="nab"): navigate_to("About")
-st.markdown('</div><div style="margin-top: 100px;"></div>', unsafe_allow_html=True)
+# --- ELITE NAVBAR ---
+st.markdown('<div class="premium-nav">', unsafe_allow_html=True)
+col_l, col_r = st.columns([3, 2])
+with col_l:
+    if st.button("Lung Disease Prediction", key="logo"): navigate_to("Home")
+with col_r:
+    nb1, nb2, nb3 = st.columns(3)
+    with nb1: 
+        if st.button("Terminal", key="n_dash"): navigate_to("Dashboard")
+    with nb2: 
+        if st.button("Hub", key="n_about"): navigate_to("Home")
+    with nb3: 
+        if st.button("History", key="n_history"): navigate_to("Result")
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div style="margin-top: 50px;"></div>', unsafe_allow_html=True)
 
-# -------------------- ASSETS --------------------
 @st.cache_resource
-def get_assets():
+def load_assets():
     try: return pickle.load(open("model/lung_model.pkl", "rb")), pickle.load(open("model/features.pkl", "rb"))
     except: return None, None
-model, feature_names = get_assets()
+model, feature_names = load_assets()
 
-# -------------------- ROUTING --------------------
-
+# --- PAGE: HOME ---
 if st.session_state.page == "Home":
-    cl, cr = st.columns([1.3, 1])
-    with cl:
-        st.markdown("<h1 class='hero-title'>AI-Powered Lung Disease Detection</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='font-size:1.2rem; opacity:0.8;'>Precise oncology risk assessment using clinical-grade neural networks.</p>", unsafe_allow_html=True)
-        if st.button("START SCAN"): navigate_to("Analysis")
-    with cr:
-        st.markdown("<div class='glass-card' style='text-align:center;'><img src='https://img.icons8.com/clouds/200/lung.png' style='width:200px;'><h3>Neural Precise</h3></div>", unsafe_allow_html=True)
+    hl, hr = st.columns([1, 1])
+    with hl:
+        st.markdown("<h1 style='font-size:4.5rem; font-weight:900; line-height:1; margin-top:100px;'>AI Lung <br><span style='color:#4facfe'>Diagnostic Hub</span></h1>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:1.3rem; opacity:0.8; margin-bottom:40px;'>Professional-grade AI clinical terminal for pulmonary risk assessments. Standardized for international clinical benchmarks.</p>", unsafe_allow_html=True)
+        if st.button("Launch Diagnostic Terminal", key="launch_btn"): navigate_to("Dashboard")
+    with hr:
+        st.markdown("<div style='text-align:right; margin-top:80px;'><img src='https://img.icons8.com/clouds/300/lung.png' style='width:420px;'></div>", unsafe_allow_html=True)
 
-elif st.session_state.page == "Analysis":
-    st.markdown("<h2>🧪 Clinical Terminal</h2>", unsafe_allow_html=True)
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    input_values = {}
+# --- PAGE: DASHBOARD (REDESIGNED GRID LAYOUT) ---
+elif st.session_state.page == "Dashboard":
+    st.markdown('<div class="back-btn" style="margin-top:20px;">', unsafe_allow_html=True)
+    if st.button("← Navigation Back", key="back_home_d"): navigate_to("Home")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("<div class='glass-container' style='margin-top:10px;'>", unsafe_allow_html=True)
+    st.markdown("<h2 style='font-weight:700; margin-bottom:30px;'><span class='mi' style='color:#4facfe; font-size:2.5rem;'>biotech</span> Clinical Input Matrix</h2>", unsafe_allow_html=True)
+    
+    in_v = {}
     f_p = ["Age", "Gender", "Genetic Risk", "Balanced Diet", "Obesity"]
     f_h = ["Smoking", "Passive Smoker", "Alcohol use", "OccuPational Hazards", "Air Pollution"]
-    f_s = [f for f in feature_names if f not in f_p + f_h + ["index", "Patient Id"]]
+    f_signs = [f for f in feature_names if f not in f_p + f_h + ["index", "Patient Id"]]
     
-    t1, t2, t3 = st.tabs(["🧬 PROFILE", "🏢 HABITS", "🤒 SYMPTOMS"])
-    with t1:
-        c1, c2 = st.columns(2)
-        for i, f in enumerate(f_p):
-            if f not in feature_names: continue
-            with c1 if i%2==0 else c2:
-                if f=="Age": input_values[f] = st.slider("Age", 0, 100, 30)
-                elif f=="Gender": 
-                    gv = st.selectbox("Gender", ["Male", "Female", "Other"])
-                    input_values[f] = 1 if gv=="Male" else 2
-                    if gv=="Female":
-                        st.selectbox("Are you Pregnant?", ["No", "Yes"], key="preg_check")
-                else: input_values[f] = 7 if st.selectbox(f, ["No", "Yes"], key=f"t1_{f}")=="Yes" else 2
-    with t2:
-        c1, c2 = st.columns(2)
-        for i, f in enumerate(f_h):
-            if f in feature_names:
-                with c1 if i%2==0 else c2: input_values[f] = 7 if st.selectbox(f, ["No", "Yes"], key=f"t2_{f}")=="Yes" else 2
-    with t3:
-        c1, c2 = st.columns(2)
-        for i, f in enumerate(f_s):
-            if f in feature_names:
-                with c1 if i%2==0 else c2: input_values[f] = 7 if st.selectbox(f, ["No", "Yes"], key=f"t3_{f}")=="Yes" else 2
-    for f in ["index", "Patient Id"]:
-        if f in feature_names: input_values[f] = 0
-    st.markdown("</div>", unsafe_allow_html=True)
-    if st.button("GENERATE AI DIAGNOSIS"):
-        st.session_state.inputs = input_values
-        st.session_state.input_data = np.array([[input_values[f] for f in feature_names]])
-        navigate_to("Result")
+    tabs = st.tabs(["🧬 Patient Profile", "🌍 Environment & Habits", "🩺 Symptom Matrix"])
+    
+    with tabs[0]:
+        st.markdown("<div class='section-header'>Registry Data</div>", unsafe_allow_html=True)
+        st.session_state.patient_name = st.text_input("Full Patient Name", st.session_state.patient_name)
+        c1, c2, c3 = st.columns(3)
+        with c1: in_v["Age"] = st.slider("Patient Age", 0, 100, 30)
+        with c2: 
+            gv = st.selectbox("Designated Gender", ["Male", "Female", "Other"])
+            in_v["Gender"] = 1 if gv == "Male" else 2
+        with c3: 
+            if gv == "Female": st.selectbox("Pregnancy Status", ["No", "Yes"], key="preg")
+        
+        st.markdown("<div class='section-header'>History Indicators</div>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        with c1: in_v["Genetic Risk"] = 7 if st.selectbox("Genetic Hist?", ["No", "Yes"]) == "Yes" else 2
+        with c2: in_v["Balanced Diet"] = 7 if st.selectbox("Balanced Diet?", ["No", "Yes"]) == "Yes" else 2
+        with c3: in_v["Obesity"] = 7 if st.selectbox("Obesity Hist?", ["No", "Yes"]) == "Yes" else 2
 
+    with tabs[1]:
+        st.markdown("<div class='section-header'>Exposure & Lifestyle Factors</div>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        for i, f in enumerate(f_h):
+            with [c1, c2, c3][i % 3]: in_v[f] = 7 if st.selectbox(f, ["No", "Yes"], key=f"t2_{f}") == "Yes" else 2
+            
+    with tabs[2]:
+        st.markdown("<div class='section-header'>Symptom Checklist (Grid View)</div>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        for i, f in enumerate(f_signs):
+            with [c1, c2, c3][i % 3]: in_v[f] = 7 if st.selectbox(f, ["No", "Yes"], key=f"t3_{f}") == "Yes" else 2
+
+    for f in ["index", "Patient Id"]: 
+        if f in feature_names: in_v[f] = 0
+        
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("EXECUTE AI DIAGNOSTIC SEQUENCE", use_container_width=True):
+        st.session_state.in_v = in_v
+        st.session_state.input_data = np.array([[in_v[f] for f in feature_names]])
+        navigate_to("Result")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# --- PAGE: RESULT (REDESIGNED PERCENTAGE FOCUS) ---
 elif st.session_state.page == "Result":
+    if st.button("← Terminal Home", key="back_home_r"): navigate_to("Home")
+    
     if "input_data" in st.session_state and model:
         probs = model.predict_proba(st.session_state.input_data)[0]
-        p_high, p_low, p_med = probs[0]*100, probs[1]*100, probs[2]*100
-        pred_idx = np.argmax(probs)
-        r_labels = {0: "High Risk", 1: "Low Risk", 2: "Medium Risk"}
-        r_colors = {0: "#ff4b2b", 1: "#00f2fe", 2: "#f9d423"}
+        p_idx = np.argmax(probs)
+        r_l = {0:"HIGH RISK", 1:"LOW RISK", 2:"MODERATE RISK"}
+        r_c = {0:"#ff4b2b", 1:"#00f2fe", 2:"#f9d423"}
+        perc = probs[p_idx] * 100
         
-        st.markdown(f"<div class='glass-card' style='border-left:15px solid {r_colors[pred_idx]};'><h1>{r_labels[pred_idx]}</h1><p>Health Score: {100-p_low:.1f}%</p></div>", unsafe_allow_html=True)
+        if p_idx == 0:
+            st.markdown(f"<div class='emergency-alert'><h2>🚨 EMERGENCY: {perc:.1f}% HIGH RISK</h2><p>Immediate medical attention required for {st.session_state.patient_name}.</p></div>", unsafe_allow_html=True)
         
-        c1, c2 = st.columns(2)
+        st.markdown(f"<div class='glass-container' style='border-left:12px solid {r_c[p_idx]}; text-align:center;'>", unsafe_allow_html=True)
+        st.markdown(f"<p style='opacity:0.6; font-size:1.2rem; margin-bottom:10px;'>Diagnostic Conclusion for {st.session_state.patient_name}</p>", unsafe_allow_html=True)
+        st.markdown(f"<div class='result-perc' style='color:{r_c[p_idx]} !important;'>{perc:.1f}% {r_l[p_idx]}</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown("<h2 style='font-weight:700;'>🌍 Diagnostic Analytics</h2>", unsafe_allow_html=True)
+        c1, c2 = st.columns([1.5, 1])
         with c1:
-            st.markdown("<div class='glass-card'><h3>Risk Meter</h3>", unsafe_allow_html=True)
-            fig = go.Figure(go.Indicator(mode="gauge+number", value=100-p_low, gauge={'axis':{'range':[0,100]}, 'bar':{'color':r_colors[pred_idx]}}))
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color':'white'}, height=280)
+            st.markdown("<div class='glass-container' style='height:450px;'>", unsafe_allow_html=True)
+            # Massive Gauge
+            fig = go.Figure(go.Indicator(mode="gauge+number", value=perc, title={'text': "Comprehensive Risk Level"}, gauge={'axis': {'range': [0, 100]}, 'bar': {'color': r_c[p_idx]}, 'steps': [{'range': [0, 30], 'color': "rgba(0, 242, 254, 0.1)"}, {'range': [30, 70], 'color': "rgba(249, 212, 35, 0.1)"}, {'range': [70, 100], 'color': "rgba(255, 75, 43, 0.1)"}]}))
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': 'white', 'size': 18}, height=380)
             st.plotly_chart(fig, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
         with c2:
-            st.markdown("<div class='glass-card'><h3>Probabilities</h3>", unsafe_allow_html=True)
-            st.write(f"🛑 High: {p_high:.1f}% | ⚠️ Med: {p_med:.1f}% | ✅ Low: {p_low:.1f}%")
+            st.markdown("<div class='glass-container' style='height:450px;'><h4>🏥 Regional Support Hub</h4>", unsafe_allow_html=True)
+            for h, s, d in [("Apollo Oncology", "Cancer Spec.", "1.2km"), ("AIIMS Center", "Pulmonary Spec.", "3.8km"), ("Max Health", "Respiratory Specialist", "5.1km")]:
+                st.markdown(f"<div style='border-bottom:1px solid rgba(255,255,255,0.05); padding:10px 0;'><strong>{h}</strong><br><span style='font-size:0.85rem; opacity:0.7;'>{s} | {d}</span></div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # RESTORING CHARTS
-        st.divider()
-        sc1, sc2 = st.columns(2)
-        with sc1:
-            st.markdown("<div class='glass-card'><h3>Symptom Severity</h3>", unsafe_allow_html=True)
-            symp_list = [f for f in feature_names if f not in ["Age", "Gender", "Genetic Risk", "Balanced Diet", "Obesity", "Smoking", "Passive Smoker", "Alcohol use", "OccuPational Hazards", "Air Pollution", "index", "Patient Id"]]
-            df_s = pd.DataFrame({"Symptom": symp_list[:7], "Intensity": [(st.session_state.inputs[f]/8)*100 for f in symp_list[:7]]})
-            st.plotly_chart(px.bar(df_s, x='Intensity', y='Symptom', orientation='h', range_x=[0, 100], color='Intensity', color_continuous_scale='Reds'), use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-        with sc2:
-            st.markdown("<div class='glass-card'><h3>Top Risk Drivers</h3>", unsafe_allow_html=True)
-            df_i = pd.DataFrame({"Factor": feature_names, "W": model.feature_importances_}).sort_values(by="W").tail(7)
-            st.plotly_chart(px.bar(df_i, x="W", y="Factor", orientation='h', color_discrete_sequence=['#4facfe']), use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+        # History Tracking
+        st.markdown("<h2 style='font-weight:700;'>📅 Diagnostic History Tracking</h2>", unsafe_allow_html=True)
+        st.markdown("<div class='glass-container'>", unsafe_allow_html=True)
+        st.session_state.history.append({'Date': datetime.datetime.now().strftime("%I:%M %p"), 'Patient': st.session_state.patient_name, 'Conclusion': r_l[p_idx], 'Conf.': f"{perc:.1f}%"})
+        st.table(pd.DataFrame(st.session_state.history).tail(5))
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        # RESTORING DOWNLOAD
-        st.divider()
-        ac1, ac2 = st.columns(2)
-        with ac1:
-            st.markdown("#### 📥 Medical Report")
-            p_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
-            SimpleDocTemplate(p_path).build([Paragraph("LUNG CANER AI REPORT", getSampleStyleSheet()['Title']), Paragraph(f"Final Assessment: {r_labels[pred_idx]}", getSampleStyleSheet()['Normal'])])
-            with open(p_path, "rb") as f: st.download_button("Download Assessment PDF", f, file_name="Report.pdf")
-        with ac2:
-            st.markdown("#### 🏥 Care Options")
-            st.link_button("Find Specialists Near Me", "https://www.google.com/maps/search/Lung+Cancer+Hospital+near+me", use_container_width=True)
-
-        if st.button("⬅️ NEW ANALYSIS"): navigate_to("Analysis")
-
-elif st.session_state.page == "About":
-    st.markdown("<div class='glass-card'><h1>About Us</h1><p>Our mission is to democratize high-end medical intelligence using Neural Vision.</p></div>", unsafe_allow_html=True)
-    if st.button("HOME"): navigate_to("Home")
-
-st.divider()
-st.caption("© 2026 LungHealth AI Suite")
+st.markdown("<div style='text-align:center; opacity:0.3; font-size:0.8rem; margin:60px 0 20px 0;'>© 2026 AI Oncology Diagnostic Suite | Lung Disease Prediction AI</div>", unsafe_allow_html=True)
