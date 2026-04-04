@@ -1,3 +1,187 @@
+
+# =============================================================================
+#  FILE: requirements.txt
+# =============================================================================
+"""
+pandas
+numpy
+scikit-learn
+streamlit
+matplotlib
+reportlab
+"""
+
+# =============================================================================
+#  FILE: train_model.py
+# =============================================================================
+"""
+import pandas as pd
+import numpy as np
+import pickle
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+
+from sklearn.ensemble import RandomForestClassifier
+
+# Try XGBoost (if installed)
+try:
+    from xgboost import XGBClassifier
+    use_xgb = True
+except:
+    use_xgb = False
+
+# -------------------- LOAD DATA --------------------
+df = pd.read_csv("dataset/lung_cancer.csv")
+
+print("Dataset Loaded Successfully")
+print(df.head())
+
+# -------------------- DATA CLEANING --------------------
+
+# Remove unwanted column if exists
+if "index" in df.columns:
+    df.drop("index", axis=1, inplace=True)
+
+# Encode categorical columns (Yes/No -> 1/0)
+le = LabelEncoder()
+
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col] = le.fit_transform(df[col])
+
+# -------------------- FEATURE & TARGET --------------------
+
+target_column = "LUNG_CANCER"   # change if your dataset uses 'Level'
+
+X = df.drop(target_column, axis=1)
+y = df[target_column]
+
+# Save feature names (VERY IMPORTANT for app)
+feature_names = X.columns.tolist()
+
+# -------------------- TRAIN TEST SPLIT --------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+# -------------------- MODEL --------------------
+
+if use_xgb:
+    print("Using XGBoost Model")
+
+    model = XGBClassifier(
+        n_estimators=500,
+        max_depth=6,
+        learning_rate=0.05,
+        subsample=0.8,
+        eval_metric='logloss'
+    )
+else:
+    print("Using Random Forest Model")
+
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=10
+    )
+
+# Train
+model.fit(X_train, y_train)
+
+# -------------------- EVALUATION --------------------
+
+y_pred = model.predict(X_test)
+
+accuracy = accuracy_score(y_test, y_pred)
+print("Model Accuracy:", accuracy)
+
+# -------------------- SAVE MODEL --------------------
+
+pickle.dump(model, open("model/lung_model.pkl", "wb"))
+
+# Save feature names
+pickle.dump(feature_names, open("model/features.pkl", "wb"))
+
+print("Model saved successfully!")
+"""
+
+# =============================================================================
+#  FILE: check_classes.py
+# =============================================================================
+"""
+import pickle
+model = pickle.load(open("C:/Users/Admin/Desktop/Lung02/model/lung_model.pkl", "rb"))
+print("Classes:", model.classes_)
+"""
+
+# =============================================================================
+#  FILE: inspect_model.py
+# =============================================================================
+"""
+import pickle
+import numpy as np
+
+model = pickle.load(open("C:/Users/Admin/Desktop/Lung02/model/lung_model.pkl", "rb"))
+
+print("Number of features:", model.n_features_in_)
+
+# Check some thresholds in the first tree to see the range of values
+tree = model.estimators_[0].tree_
+thresholds = tree.threshold[tree.threshold != -2]  # -2 is for leaves
+print("Sample Thresholds (Min/Max):", np.min(thresholds), np.max(thresholds))
+
+# If thresholds are around 1, 2, 3, then it's a 1-8 or 1-3 scale.
+# If they are around 0.5, then it's a 0/1 binary scale.
+"""
+
+# =============================================================================
+#  FILE: test_risk_mapping.py
+# =============================================================================
+"""
+import pickle
+import numpy as np
+
+model = pickle.load(open("C:/Users/Admin/Desktop/Lung02/model/lung_model.pkl", "rb"))
+features = pickle.load(open("C:/Users/Admin/Desktop/Lung02/model/features.pkl", "rb"))
+
+# High risk dummy
+high_risk = np.array([[8]*25])
+for i, f in enumerate(features):
+    if f == "Age": high_risk[0][i] = 60
+    if f == "Gender": high_risk[0][i] = 1  # Male
+    if f in ["index", "Patient Id"]: high_risk[0][i] = 0
+
+p_high = model.predict_proba(high_risk)[0]
+print("High Risk input results (Classes 0, 1, 2):")
+for i, prob in enumerate(p_high):
+    print(i, prob)
+
+# Low risk dummy
+low_risk = np.array([[1]*25])
+for i, f in enumerate(features):
+    if f == "Age": low_risk[0][i] = 20
+    if f == "Gender": low_risk[0][i] = 2  # Female
+    if f in ["index", "Patient Id"]: low_risk[0][i] = 0
+
+p_low = model.predict_proba(low_risk)[0]
+print("\nLow Risk input results (Classes 0, 1, 2):")
+for i, prob in enumerate(p_low):
+    print(i, prob)
+"""
+
+# =============================================================================
+#  FILE: save_features.py
+# =============================================================================
+"""
+(Empty file - no code)
+"""
+
+# =============================================================================
+#  FILE: app.py  (MAIN STREAMLIT APPLICATION)
+# =============================================================================
+
 import streamlit as st
 import pickle
 import numpy as np
@@ -114,87 +298,46 @@ html, body, [class*="css"] {
 .risk-fill { height: 100%; border-radius: 3px; }
 
 /* ── Step indicator ── */
-@keyframes pulse-ring {
-    0%   { box-shadow: 0 0 0 0 rgba(46,160,67,0.55); }
-    70%  { box-shadow: 0 0 0 10px rgba(46,160,67,0); }
-    100% { box-shadow: 0 0 0 0 rgba(46,160,67,0); }
-}
-.step-bar-wrapper {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 12px;
-    padding: 20px 28px;
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-}
 .step-bar {
     display: flex;
     align-items: center;
     gap: 0;
-    width: 100%;
+    margin-bottom: 2rem;
 }
 .step-item {
     display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 8px;
-    position: relative;
+    flex: 1;
 }
 .step-circle {
-    width: 42px;
-    height: 42px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 700;
     flex-shrink: 0;
-    transition: all 0.3s ease;
 }
-.step-active {
-    background: linear-gradient(135deg, #238636, #2ea043);
-    color: white;
-    border: 2px solid #3fb950;
-    box-shadow: 0 0 0 4px rgba(46,160,67,0.2);
-    animation: pulse-ring 1.8s ease-out infinite;
-}
-.step-done {
-    background: linear-gradient(135deg, #1a7f3c, #238636);
-    color: #d2ffd9;
-    border: 2px solid #3fb950;
-    box-shadow: 0 0 12px rgba(63,185,80,0.3);
-}
-.step-pending {
-    background: #21262d;
-    color: #484f58;
-    border: 2px solid #30363d;
-}
+.step-active  { background: #238636; color: white; border: 2px solid #2ea043; }
+.step-done    { background: #1f6feb; color: white; border: 2px solid #58a6ff; }
+.step-pending { background: #21262d; color: #8b949e; border: 2px solid #30363d; }
 .step-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 .step-label-active  { color: #e6edf3; }
-.step-label-done    { color: #3fb950; }
-.step-label-pending { color: #484f58; }
-.step-connector {
+.step-label-done    { color: #58a6ff; }
+.step-label-pending { color: #8b949e; }
+.step-line {
     flex: 1;
-    height: 3px;
-    border-radius: 2px;
-    margin: 0 10px;
-    margin-bottom: 20px;
-    background: #21262d;
-    position: relative;
-    overflow: hidden;
+    height: 2px;
+    background: #30363d;
+    margin: 0 8px;
 }
-.step-connector-done {
-    background: linear-gradient(90deg, #238636, #3fb950);
-    box-shadow: 0 0 6px rgba(63,185,80,0.4);
-}
+.step-line-done { background: #3fb950; }
 
 /* ── FAQ button override ── */
 div[data-testid="stVerticalBlock"] button[kind="secondary"] {
@@ -385,6 +528,7 @@ if st.session_state.page == "Home":
     # ── Hero ──
     col_h1, col_h2 = st.columns([1.6, 1], gap="large")
     with col_h1:
+        st.markdown("<p class='section-label'>Clinical Decision Support</p>", unsafe_allow_html=True)
         st.markdown("""
             <h1 style='font-size:2.6rem; font-weight:700; line-height:1.2; color:#e6edf3; margin:0.2rem 0 1rem 0;'>
                 Lung Disease<br>Risk Prediction
@@ -498,7 +642,7 @@ elif st.session_state.page == "Dashboard":
         if i == step:  return "step-active",   "step-label-active"
         return "step-pending", "step-label-pending"
 
-    step_html = "<div class='step-bar-wrapper'><div class='step-bar'>"
+    step_html = "<div class='step-bar'>"
     for i in range(1, 4):
         circ_cls, lbl_cls = step_class(i)
         icon = "✓" if i < step else str(i)
@@ -509,9 +653,9 @@ elif st.session_state.page == "Dashboard":
             </div>
         """
         if i < 3:
-            conn_cls = "step-connector-done" if i < step else ""
-            step_html += f"<div class='step-connector {conn_cls}'></div>"
-    step_html += "</div></div>"
+            line_cls = "step-line-done" if i < step else ""
+            step_html += f"<div class='step-line {line_cls}'></div>"
+    step_html += "</div>"
     st.markdown(step_html, unsafe_allow_html=True)
 
     # ── Restore previously entered values ──
@@ -561,6 +705,7 @@ elif st.session_state.page == "Dashboard":
                                                   index=ob_opts.index(ob_saved)) == "Yes" else 2
 
         st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:0.78rem; color:#8b949e;'>* Required fields</p>", unsafe_allow_html=True)
 
         _, btn_col = st.columns([6, 1])
         with btn_col:
@@ -649,11 +794,11 @@ elif st.session_state.page == "Result":
         st.warning("No prediction data found. Please run a diagnosis first.")
         col_a, col_b = st.columns([1, 1])
         with col_a:
-            if st.button("Go to Diagnosis", key="res_nodata_diag"):
+            if st.button("🔬 Go to Diagnosis", key="res_nodata_diag"):
                 st.session_state.form_step = 1
                 go("Dashboard")
         with col_b:
-            if st.button("Home", key="res_nodata_home"):
+            if st.button("🏠 Home", key="res_nodata_home"):
                 go("Home")
         st.stop()
 
@@ -693,7 +838,7 @@ elif st.session_state.page == "Result":
     # ── Top nav row ──
     nav_c1, nav_c2, nav_spacer = st.columns([1, 1, 6])
     with nav_c1:
-        if st.button("Home", key="res_home"):
+        if st.button("🏠 Home", key="res_home"):
             go("Home")
     with nav_c2:
         if st.button("← New Diagnosis", key="res_back"):
@@ -783,7 +928,7 @@ elif st.session_state.page == "Result":
             # Logo text + title
             c.setFillColor(colors.HexColor("#58a6ff"))
             c.setFont("Helvetica-Bold", 10)
-            c.drawString(40, H - 28, "LUNG DISEASE PREDICTION")
+            c.drawString(40, H - 28, "🫁  LUNG DISEASE PREDICTION")
 
             c.setFillColor(colors.white)
             c.setFont("Helvetica-Bold", 18)
@@ -1002,3 +1147,11 @@ elif st.session_state.page == "Result":
                 </div>
             """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
+
+# ── Footer ──
+st.markdown("""
+    <div style='margin-top:3rem; padding-top:1.5rem; border-top:1px solid #21262d;
+                text-align:center; font-size:0.72rem; color:#484f58;'>
+        Lung Disease Prediction &nbsp;·&nbsp; Clinical Suite v3.8 &nbsp;·&nbsp; For research use only
+    </div>
+""", unsafe_allow_html=True)
