@@ -1,6 +1,7 @@
 import streamlit as st
 import pickle
 import numpy as np
+import pandas as pd
 import datetime
 import io
 from reportlab.pdfgen import canvas
@@ -14,7 +15,7 @@ st.set_page_config(
     page_title="Lung Disease Prediction",
     page_icon="",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ─────────────────────────── GLOBAL CSS ────────────────────────────
@@ -34,6 +35,7 @@ html, body, [class*="css"] {
 
 /* ── Hide default streamlit chrome ── */
 #MainMenu, footer, header { visibility: hidden; }
+[data-testid="stSidebar"], [data-testid="collapsedControl"] { display: none !important; }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; }
 
 /* ── Sidebar ── */
@@ -356,26 +358,6 @@ def go(page):
     st.session_state.page = page
     st.rerun()
 
-# ─────────────────────────── SIDEBAR ───────────────────────────────
-with st.sidebar:
-    st.markdown("<div class='sidebar-logo'>🫁 Lung Disease Prediction</div>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size:0.78rem; color:#8b949e; margin-bottom:1.5rem;'>Clinical diagnostic tool powered by Random Forest classification.</p>", unsafe_allow_html=True)
-
-    nav_items = [("🏠  Home", "Home"), ("🩺  Run Diagnosis", "Dashboard"), ("📋  View Result", "Result")]
-    for label, target in nav_items:
-        active = st.session_state.page == target
-        if st.button(label, key=f"nav_{target}", use_container_width=True):
-            go(target)
-
-    st.markdown("<div style='margin-top:2rem; padding-top:1rem; border-top:1px solid #30363d;'>", unsafe_allow_html=True)
-    st.markdown("<p class='section-label'>About</p>", unsafe_allow_html=True)
-    st.markdown("""
-        <p style='font-size:0.78rem; color:#8b949e; line-height:1.6;'>
-        This tool uses a trained ML model with 25 clinical features to assess lung disease risk.
-        Always consult a certified medical professional for clinical decisions.
-        </p>
-    """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════
 #  PAGE: HOME
@@ -433,11 +415,20 @@ if st.session_state.page == "Home":
                 st.session_state.faq_question = q
                 st.session_state.faq_answer = faqs[q]
 
-        with st.expander("Show more questions"):
+        # Toggle button to open/close extra questions
+        if "faq_expander_open" not in st.session_state:
+            st.session_state.faq_expander_open = False
+        toggle_label = "🔼 Hide extra questions" if st.session_state.faq_expander_open else "🔽 Show more questions"
+        if st.button(toggle_label, key="faq_toggle", use_container_width=True):
+            st.session_state.faq_expander_open = not st.session_state.faq_expander_open
+            st.rerun()
+
+        if st.session_state.faq_expander_open:
             for q in keys[5:]:
                 if st.button(q, key=f"faq_{q}", use_container_width=True):
                     st.session_state.faq_question = q
                     st.session_state.faq_answer = faqs[q]
+                    st.session_state.faq_expander_open = True
 
     with faq_col2:
         st.markdown("<p class='section-label'>Answer</p>", unsafe_allow_html=True)
@@ -525,14 +516,24 @@ elif st.session_state.page == "Dashboard":
         patient_name = st.text_input(
             "Patient full name *",
             value=st.session_state.patient_name,
-            placeholder="e.g. Ramesh Kumar"
+            placeholder=""
         )
         st.session_state.patient_name = patient_name
 
         c1, c2, c3 = st.columns(3)
         with c1:
-            age_val = in_v.get("Age", 1)
-            in_v["Age"] = st.slider("Age *", 1, 100, age_val)
+            age_str = st.text_input(
+                "Age *",
+                value=str(in_v["Age"]) if "Age" in in_v else "",
+                placeholder="Enter age"
+            )
+            if age_str.strip():
+                if age_str.strip().isdigit() and 1 <= int(age_str.strip()) <= 100:
+                    in_v["Age"] = int(age_str.strip())
+                else:
+                    st.error("Age must be a number between 1 and 100.")
+            elif "Age" in in_v:
+                del in_v["Age"]
         with c2:
             gender_options = ["-- Select --", "Male", "Female", "Other"]
             if "Gender" in in_v:
@@ -567,6 +568,8 @@ elif st.session_state.page == "Dashboard":
             if st.button("Next →", key="step1_next"):
                 if not patient_name.strip():
                     st.error("⚠️ Please enter the patient's full name before proceeding.")
+                elif "Age" not in in_v or in_v.get("Age") is None:
+                    st.error("⚠️ Please enter the patient's age before proceeding.")
                 elif in_v.get("Gender", 0) == 0:
                     st.error("⚠️ Please select a Gender before proceeding.")
                 else:
@@ -635,7 +638,7 @@ elif st.session_state.page == "Dashboard":
                     st.error(f"⚠️ Some fields are missing: {missing}. Please review all steps.")
                 else:
                     st.session_state.in_v = in_v
-                    st.session_state.input_data = np.array([[in_v[f] for f in feature_names]])
+                    st.session_state.input_data = pd.DataFrame([[in_v[f] for f in feature_names]], columns=feature_names)
                     st.session_state.pdf_ready = False
                     st.session_state.pdf_bytes = None
                     go("Result")
@@ -664,7 +667,7 @@ elif st.session_state.page == "Result":
         st.error(f"Could not load model: {e}")
         st.stop()
 
-    probs  = model.predict_proba(st.session_state.input_data)[0]
+    probs  = model.predict_proba(st.session_state.input_data)[0]  # input_data is a DataFrame — no feature name warning
     p_idx  = int(np.argmax(probs))
     perc   = probs[p_idx] * 100
 
