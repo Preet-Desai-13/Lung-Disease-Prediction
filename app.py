@@ -4,11 +4,17 @@ import numpy as np
 import pandas as pd
 import datetime
 import io
+import pathlib
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib.units import inch
+
+# Resolve paths relative to this script's directory (fixes terminal location errors)
+_BASE = pathlib.Path(__file__).parent
+MODEL_PATH    = str(_BASE / "model" / "lung_model.pkl")
+FEATURES_PATH = str(_BASE / "model" / "features.pkl")
 
 # ─────────────────────────── PAGE CONFIG ───────────────────────────
 st.set_page_config(
@@ -469,8 +475,8 @@ elif st.session_state.page == "Dashboard":
     """, unsafe_allow_html=True)
 
     try:
-        model = pickle.load(open("model/lung_model.pkl", "rb"))
-        feature_names = pickle.load(open("model/features.pkl", "rb"))
+        model = pickle.load(open(MODEL_PATH, "rb"))
+        feature_names = pickle.load(open(FEATURES_PATH, "rb"))
     except Exception as e:
         st.error(f"Could not load model files: {e}")
         st.stop()
@@ -631,11 +637,18 @@ elif st.session_state.page == "Dashboard":
         with predict_col:
             # Validate all required inputs exist
             missing = [f for f in feature_names if f not in in_v]
+            invalid = []
+            if "Age" in in_v and (in_v["Age"] < 1 or in_v["Age"] > 100):
+                invalid.append("Age must be between 1 and 100")
+            if in_v.get("Gender", 0) == 0:
+                invalid.append("Gender must be selected")
             if st.button("🔍 Predict Now", key="step3_predict"):
                 if not st.session_state.patient_name.strip():
                     st.error("⚠️ Patient name is missing. Please go back to Step 1.")
                 elif missing:
                     st.error(f"⚠️ Some fields are missing: {missing}. Please review all steps.")
+                elif invalid:
+                    st.error(f"⚠️ Invalid inputs: {'; '.join(invalid)}")
                 else:
                     st.session_state.in_v = in_v
                     st.session_state.input_data = pd.DataFrame([[in_v[f] for f in feature_names]], columns=feature_names)
@@ -661,15 +674,19 @@ elif st.session_state.page == "Result":
         st.stop()
 
     try:
-        model = pickle.load(open("model/lung_model.pkl", "rb"))
-        feature_names = pickle.load(open("model/features.pkl", "rb"))
+        model = pickle.load(open(MODEL_PATH, "rb"))
+        feature_names = pickle.load(open(FEATURES_PATH, "rb"))
     except Exception as e:
         st.error(f"Could not load model: {e}")
         st.stop()
 
-    probs  = model.predict_proba(st.session_state.input_data)[0]  # input_data is a DataFrame — no feature name warning
-    p_idx  = int(np.argmax(probs))
-    perc   = probs[p_idx] * 100
+    try:
+        probs  = model.predict_proba(st.session_state.input_data)[0]  # input_data is a DataFrame — no feature name warning
+        p_idx  = int(np.argmax(probs))
+        perc   = probs[p_idx] * 100
+    except Exception as e:
+        st.error(f"Prediction failed: {e}")
+        st.stop()
 
     LABELS  = {0: "HIGH RISK",     1: "LOW RISK",     2: "MODERATE RISK"}
     COLORS  = {0: "#f85149",       1: "#3fb950",       2: "#e3b341"}
@@ -983,10 +1000,13 @@ elif st.session_state.page == "Result":
         # Show Generate button first; on click generate and cache
         if not st.session_state.pdf_ready:
             if st.button("📄 Generate PDF Report", key="gen_pdf"):
-                with st.spinner("Generating report..."):
-                    st.session_state.pdf_bytes = generate_pdf()
-                    st.session_state.pdf_ready = True
-                st.rerun()
+                try:
+                    with st.spinner("Generating report..."):
+                        st.session_state.pdf_bytes = generate_pdf()
+                        st.session_state.pdf_ready = True
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to generate PDF: {e}")
         else:
             fname = f"lung_report_{(st.session_state.patient_name or 'patient').replace(' ', '_')}.pdf"
             st.download_button(

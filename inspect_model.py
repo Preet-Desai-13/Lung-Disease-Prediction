@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
 
-model = pickle.load(open("C:/Users/Admin/Desktop/Lung02/model/lung_model.pkl", "rb"))
+model = pickle.load(open("model/lung_model.pkl", "rb"))
 
 print("Number of features:", model.n_features_in_)
 
