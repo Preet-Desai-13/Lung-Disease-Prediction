@@ -774,85 +774,137 @@ elif st.session_state.page == "Result":
         st.markdown("</div>", unsafe_allow_html=True)
 
         def generate_pdf():
-            """Generate a rich, well-formatted PDF report."""
+            """Generate a clean, professional PDF report."""
             buf = io.BytesIO()
             c = canvas.Canvas(buf, pagesize=letter)
             W, H = letter  # 612 x 792
 
-            # ── Header Banner ──
-            c.setFillColor(colors.HexColor("#0d1117"))
-            c.rect(0, H - 80, W, 80, fill=1, stroke=0)
-
-            # Logo text + title
-            c.setFillColor(colors.HexColor("#58a6ff"))
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(40, H - 28, "LUNG DISEASE PREDICTION")
-
+            # ════════════════════════════════════════
+            #  BACKGROUND — white page
+            # ════════════════════════════════════════
             c.setFillColor(colors.white)
-            c.setFont("Helvetica-Bold", 18)
-            c.drawString(40, H - 52, "Clinical Diagnostic Report")
+            c.rect(0, 0, W, H, fill=1, stroke=0)
 
+            # ════════════════════════════════════════
+            #  TOP ACCENT BAR
+            # ════════════════════════════════════════
+            c.setFillColor(colors.HexColor(COLORS[p_idx]))
+            c.rect(0, H - 6, W, 6, fill=1, stroke=0)
+
+            # ════════════════════════════════════════
+            #  HEADER AREA
+            # ════════════════════════════════════════
+            # App name
+            c.setFillColor(colors.HexColor("#1a1a2e"))
+            c.setFont("Helvetica-Bold", 15)
+            c.drawString(40, H - 38, "Lung Disease Prediction")
+
+            # Report date top-right
+            c.setFillColor(colors.HexColor("#6b7280"))
             c.setFont("Helvetica", 9)
-            c.setFillColor(colors.HexColor("#8b949e"))
-            c.drawRightString(W - 40, H - 28, f"Generated: {datetime.datetime.now().strftime('%d %b %Y  %H:%M')}")
-            c.drawRightString(W - 40, H - 44, "For reference use only · Consult a physician")
+            c.drawRightString(W - 40, H - 32, f"Date: {datetime.datetime.now().strftime('%d %B %Y  |  %H:%M')}")
 
-            # ── Result Banner ──
-            result_color = COLORS[p_idx]
-            c.setFillColor(colors.HexColor(result_color))
-            c.rect(0, H - 130, W, 48, fill=1, stroke=0)
+            # Thin separator line under header
+            c.setStrokeColor(colors.HexColor("#e5e7eb"))
+            c.setLineWidth(1)
+            c.line(40, H - 52, W - 40, H - 52)
+
+            # ════════════════════════════════════════
+            #  RESULT PILL BADGE
+            # ════════════════════════════════════════
+            badge_x, badge_y = 40, H - 98
+            badge_w, badge_h = 200, 34
+            c.setFillColor(colors.HexColor(COLORS[p_idx]))
+            c.roundRect(badge_x, badge_y, badge_w, badge_h, 6, fill=1, stroke=0)
             c.setFillColor(colors.white)
-            c.setFont("Helvetica-Bold", 20)
-            c.drawString(40, H - 112, f"RESULT:  {LABELS[p_idx]}")
-            c.setFont("Helvetica", 13)
-            c.drawRightString(W - 40, H - 112, f"Confidence:  {perc:.1f}%")
+            c.setFont("Helvetica-Bold", 14)
+            label_text = LABELS[p_idx]
+            text_w = c.stringWidth(label_text, "Helvetica-Bold", 14)
+            c.drawString(badge_x + (badge_w - text_w) / 2, badge_y + 11, label_text)
 
-            # ── Progress bar ──
-            bar_y = H - 148
-            c.setFillColor(colors.HexColor("#21262d"))
-            c.roundRect(40, bar_y, W - 80, 10, 5, fill=1, stroke=0)
-            fill_w = (W - 80) * (perc / 100)
-            c.setFillColor(colors.HexColor(result_color))
-            c.roundRect(40, bar_y, fill_w, 10, 5, fill=1, stroke=0)
+            # Confidence score to the right of badge
+            c.setFillColor(colors.HexColor("#111827"))
+            c.setFont("Helvetica-Bold", 22)
+            c.drawString(260, H - 90, f"{perc:.1f}%")
+            c.setFillColor(colors.HexColor("#6b7280"))
+            c.setFont("Helvetica", 9)
+            c.drawString(260, H - 102, "Confidence Score")
 
-            # ── Patient Info Box ──
-            c.setFillColor(colors.HexColor("#161b22"))
-            c.roundRect(40, H - 230, W - 80, 68, 6, fill=1, stroke=0)
-            c.setFillColor(colors.HexColor("#30363d"))
-            c.roundRect(40, H - 230, W - 80, 68, 6, fill=0, stroke=1)
+            # Confidence progress bar
+            bar_x, bar_y_pos, bar_w_full, bar_h = 40, H - 114, W - 80, 7
+            c.setFillColor(colors.HexColor("#e5e7eb"))
+            c.roundRect(bar_x, bar_y_pos, bar_w_full, bar_h, 3, fill=1, stroke=0)
+            fill_w = bar_w_full * (perc / 100)
+            c.setFillColor(colors.HexColor(COLORS[p_idx]))
+            c.roundRect(bar_x, bar_y_pos, fill_w, bar_h, 3, fill=1, stroke=0)
 
-            c.setFillColor(colors.HexColor("#8b949e"))
-            c.setFont("Helvetica", 8)
-            c.drawString(56, H - 172, "PATIENT NAME")
-            c.drawString(280, H - 172, "REPORT DATE")
+            # ════════════════════════════════════════
+            #  PATIENT INFO CARD  (light grey box)
+            # ════════════════════════════════════════
+            card_y = H - 190
+            c.setFillColor(colors.HexColor("#f9fafb"))
+            c.roundRect(40, card_y, W - 80, 58, 6, fill=1, stroke=0)
+            c.setStrokeColor(colors.HexColor("#e5e7eb"))
+            c.setLineWidth(0.8)
+            c.roundRect(40, card_y, W - 80, 58, 6, fill=0, stroke=1)
 
-            c.setFillColor(colors.HexColor("#e6edf3"))
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(56, H - 190, st.session_state.patient_name or "N/A")
-            c.drawString(280, H - 190, datetime.datetime.now().strftime("%d %B %Y"))
-
-            c.setFillColor(colors.HexColor("#8b949e"))
-            c.setFont("Helvetica", 8)
-            c.drawString(56, H - 210, "RISK CATEGORY")
-            c.drawString(280, H - 210, "CONFIDENCE SCORE")
-
-            c.setFillColor(colors.HexColor(result_color))
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(56, H - 225, LABELS[p_idx])
-            c.drawString(280, H - 225, f"{perc:.1f}%")
-
-            # ── Section: Clinical Summary ──
-            y = H - 260
-            c.setFillColor(colors.HexColor("#58a6ff"))
+            # Left column: Patient Name
+            c.setFillColor(colors.HexColor("#9ca3af"))
+            c.setFont("Helvetica", 7.5)
+            c.drawString(56, card_y + 44, "PATIENT NAME")
+            c.setFillColor(colors.HexColor("#111827"))
             c.setFont("Helvetica-Bold", 11)
-            c.drawString(40, y, "■  CLINICAL SUMMARY")
-            c.setFillColor(colors.HexColor("#30363d"))
-            c.rect(40, y - 4, W - 80, 1, fill=1, stroke=0)
+            c.drawString(56, card_y + 28, st.session_state.patient_name or "N/A")
 
-            y -= 20
-            c.setFillColor(colors.HexColor("#c9d1d9"))
+            # Middle column: Report Date
+            c.setFillColor(colors.HexColor("#9ca3af"))
+            c.setFont("Helvetica", 7.5)
+            c.drawString(230, card_y + 44, "REPORT DATE")
+            c.setFillColor(colors.HexColor("#111827"))
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(230, card_y + 28, datetime.datetime.now().strftime("%d %B %Y"))
+
+            # Right column: Risk
+            c.setFillColor(colors.HexColor("#9ca3af"))
+            c.setFont("Helvetica", 7.5)
+            c.drawString(420, card_y + 44, "RISK LEVEL")
+            c.setFillColor(colors.HexColor(COLORS[p_idx]))
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(420, card_y + 28, LABELS[p_idx])
+
+            # Small dividers between columns
+            c.setStrokeColor(colors.HexColor("#e5e7eb"))
+            c.setLineWidth(0.6)
+            c.line(218, card_y + 10, 218, card_y + 50)
+            c.line(408, card_y + 10, 408, card_y + 50)
+
+            # Leave extra info below the card
+            c.setFillColor(colors.HexColor("#9ca3af"))
+            c.setFont("Helvetica", 7.5)
+            c.drawString(56, card_y + 10, "CONFIDENCE")
+            c.setFillColor(colors.HexColor("#111827"))
+            c.setFont("Helvetica-Bold", 9)
+            c.drawString(110, card_y + 10, f"{perc:.1f}%")
+
+            # ════════════════════════════════════════
+            #  HELPER: draw a section heading
+            # ════════════════════════════════════════
+            def section_heading(text, y_pos, color="#111827"):
+                c.setFillColor(colors.HexColor(color))
+                c.setFont("Helvetica-Bold", 10)
+                c.drawString(40, y_pos, text.upper())
+                c.setStrokeColor(colors.HexColor(color))
+                c.setLineWidth(1.5)
+                c.line(40, y_pos - 5, W - 40, y_pos - 5)
+                return y_pos - 20
+
+            # ════════════════════════════════════════
+            #  CLINICAL SUMMARY
+            # ════════════════════════════════════════
+            y = H - 218
+            y = section_heading("Clinical Summary", y, "#1d4ed8")
+            c.setFillColor(colors.HexColor("#374151"))
             c.setFont("Helvetica", 10)
-            # Word-wrap the summary text
             summary_words = msg_map[p_idx].split()
             line = ""
             for word in summary_words:
@@ -861,81 +913,68 @@ elif st.session_state.page == "Result":
                     line = test
                 else:
                     c.drawString(56, y, line)
-                    y -= 16
+                    y -= 15
                     line = word
             if line:
                 c.drawString(56, y, line)
-                y -= 24
+                y -= 22
 
-            # ── Section: Recommendations ──
-            c.setFillColor(colors.HexColor("#3fb950"))
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(40, y, "■  RECOMMENDED ACTIONS")
-            c.setFillColor(colors.HexColor("#30363d"))
-            c.rect(40, y - 4, W - 80, 1, fill=1, stroke=0)
-            y -= 18
-
+            # ════════════════════════════════════════
+            #  RECOMMENDED ACTIONS
+            # ════════════════════════════════════════
+            y = section_heading("Recommended Actions", y, "#15803d")
             for item in do_map[p_idx]:
-                c.setFillColor(colors.HexColor("#3fb950"))
-                c.setFont("Helvetica-Bold", 10)
-                c.drawString(56, y, "✓")
-                c.setFillColor(colors.HexColor("#c9d1d9"))
+                # Green dot bullet
+                c.setFillColor(colors.HexColor("#16a34a"))
+                c.circle(52, y + 3, 3, fill=1, stroke=0)
+                c.setFillColor(colors.HexColor("#374151"))
                 c.setFont("Helvetica", 10)
-                c.drawString(72, y, item)
-                y -= 18
-            y -= 8
+                c.drawString(62, y, item)
+                y -= 17
+            y -= 6
 
-            # ── Section: Restrictions ──
-            c.setFillColor(colors.HexColor("#f85149"))
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(40, y, "■  RESTRICTIONS / WHAT TO AVOID")
-            c.setFillColor(colors.HexColor("#30363d"))
-            c.rect(40, y - 4, W - 80, 1, fill=1, stroke=0)
-            y -= 18
-
+            # ════════════════════════════════════════
+            #  WHAT TO AVOID
+            # ════════════════════════════════════════
+            y = section_heading("What To Avoid", y, "#b91c1c")
             for item in dont_map[p_idx]:
-                c.setFillColor(colors.HexColor("#f85149"))
-                c.setFont("Helvetica-Bold", 10)
-                c.drawString(56, y, "✗")
-                c.setFillColor(colors.HexColor("#c9d1d9"))
+                # Red dot bullet
+                c.setFillColor(colors.HexColor("#dc2626"))
+                c.circle(52, y + 3, 3, fill=1, stroke=0)
+                c.setFillColor(colors.HexColor("#374151"))
                 c.setFont("Helvetica", 10)
-                c.drawString(72, y, item)
-                y -= 18
-            y -= 12
+                c.drawString(62, y, item)
+                y -= 17
+            y -= 6
 
-            # ── Section: All Class Probabilities ──
-            c.setFillColor(colors.HexColor("#e3b341"))
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(40, y, "■  PROBABILITY BREAKDOWN")
-            c.setFillColor(colors.HexColor("#30363d"))
-            c.rect(40, y - 4, W - 80, 1, fill=1, stroke=0)
-            y -= 20
-
-            class_labels = {0: ("High Risk", "#f85149"), 1: ("Low Risk", "#3fb950"), 2: ("Moderate Risk", "#e3b341")}
+            # ════════════════════════════════════════
+            #  PROBABILITY BREAKDOWN
+            # ════════════════════════════════════════
+            y = section_heading("Probability Breakdown", y, "#92400e")
+            class_labels = {0: ("High Risk", "#ef4444"), 1: ("Low Risk", "#22c55e"), 2: ("Moderate Risk", "#f59e0b")}
             for idx, (label, bar_color) in class_labels.items():
                 prob_pct = probs[idx] * 100
-                c.setFillColor(colors.HexColor("#8b949e"))
+                c.setFillColor(colors.HexColor("#374151"))
                 c.setFont("Helvetica", 9)
                 c.drawString(56, y, label)
+                c.setFont("Helvetica-Bold", 9)
                 c.drawRightString(W - 40, y, f"{prob_pct:.1f}%")
-                y -= 14
-                # Bar background
-                c.setFillColor(colors.HexColor("#21262d"))
-                c.roundRect(56, y, W - 112, 8, 4, fill=1, stroke=0)
-                # Bar fill
+                y -= 12
+                # Track
+                c.setFillColor(colors.HexColor("#e5e7eb"))
+                c.roundRect(56, y, W - 112, 7, 3, fill=1, stroke=0)
+                # Fill
                 bar_w = (W - 112) * (prob_pct / 100)
                 if bar_w > 0:
                     c.setFillColor(colors.HexColor(bar_color))
-                    c.roundRect(56, y, bar_w, 8, 4, fill=1, stroke=0)
-                y -= 20
+                    c.roundRect(56, y, bar_w, 7, 3, fill=1, stroke=0)
+                y -= 18
 
-            # ── Footer ──
-            c.setFillColor(colors.HexColor("#161b22"))
-            c.rect(0, 0, W, 48, fill=1, stroke=0)
-            c.setFillColor(colors.HexColor("#8b949e"))
-            c.setFont("Helvetica-Oblique", 8)
-            c.drawString(40, 30, "Lung Disease Prediction  ·  Clinical Suite v3.8  ·  For research & reference use only")
-            c.drawRightString(W - 40, 30, "This report does NOT replace a clinical diagnosis. Consult a certified physician.")
+            # ════════════════════════════════════════
+            #  BOTTOM ACCENT LINE (matches top)
+            # ════════════════════════════════════════
+            c.setFillColor(colors.HexColor(COLORS[p_idx]))
+            c.rect(0, 0, W, 5, fill=1, stroke=0)
 
             c.save()
             buf.seek(0)
